@@ -208,6 +208,7 @@ class helper_plugin_move_rewrite extends Plugin {
      * @return string        The rewritten wiki text
      */
     public function rewrite($id, $text) {
+        global $conf;
         $meta = $this->getMoveMeta($id);
 
         $handlers = array();
@@ -239,7 +240,18 @@ class helper_plugin_move_rewrite extends Plugin {
 
 
         // Create the parser
-        $Parser = new Parser(new Doku_Handler());
+        if (class_exists(dokuwiki\Parsing\ModeRegistry::class)) {
+            // starting with Mort the modes live in ModeRegistry instead of $PARSER_MODES
+            $registry = new dokuwiki\Parsing\ModeRegistry($conf['syntax']);
+            // must run before the first addMode()
+            $modes = $registry->getModes();
+            $Parser = new Parser(new Doku_Handler($registry), $registry);
+        } else {
+            $Parser = new Parser(new Doku_Handler());
+            // p_get_parsermodes() populates the global $PARSER_MODES as a side effect
+            $modes = p_get_parsermodes();
+        }
+
         $Handler = new helper_plugin_move_handler();
         $Handler->init($id, $origin, $pages, $media, $handlers);
 
@@ -251,7 +263,6 @@ class helper_plugin_move_rewrite extends Plugin {
 
 
         //add modes to parser
-        $modes = p_get_parsermodes();
         foreach($modes as $mode) {
             $Parser->addMode($mode['mode'], $mode['obj']);
         }
